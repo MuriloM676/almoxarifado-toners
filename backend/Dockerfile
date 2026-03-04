@@ -7,6 +7,8 @@ RUN npm ci --omit=dev
 
 COPY server.js ./
 
+RUN mkdir -p /app/data
+
 EXPOSE 3001
 
 CMD ["node", "server.js"]

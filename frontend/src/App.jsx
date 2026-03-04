@@ -95,8 +95,95 @@ const Spinner = () => (
   </div>
 );
 
-// ══════════════════════════════════════════════════════════════════════════════
-// DASHBOARD
+// ══════════════════════════════════════════════════════════════════════════════// LOGIN
+// ════════════════════════════════════════════════════════════════════════════════
+const Login = ({ onLogin }) => {
+  const [form,    setForm]    = useState({ username: "", password: "" });
+  const [erro,    setErro]    = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setErro("");
+    setLoading(true);
+    try {
+      const data = await api.login(form.username, form.password);
+      onLogin(data.user);
+    } catch (err) {
+      setErro(err.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center mb-4">
+            <Icon name="printer" size={28} className="text-white"/>
+          </div>
+          <h1 className="text-2xl font-black text-gray-800">Almoxarifado</h1>
+          <p className="text-gray-400 text-sm mt-1">Gestão de Toners</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input label="Usuário" type="text" value={form.username} autoComplete="username"
+            onChange={e => setForm(f => ({...f, username: e.target.value}))} placeholder="admin"/>
+          <Input label="Senha" type="password" value={form.password} autoComplete="current-password"
+            onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="••••••••"/>
+          {erro && <p className="text-red-600 text-sm text-center">{erro}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-xl text-sm font-semibold shadow-lg shadow-blue-100 transition-colors">
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════════
+// TROCAR SENHA
+// ════════════════════════════════════════════════════════════════════════════════
+const TrocarSenha = ({ onClose, toast }) => {
+  const [form,    setForm]    = useState({ senhaAtual: "", novaSenha: "", confirmar: "" });
+  const [saving,  setSaving]  = useState(false);
+
+  const salvar = async () => {
+    if (form.novaSenha !== form.confirmar) { toast("As senhas não coincidem", "error"); return; }
+    if (form.novaSenha.length < 6)         { toast("Nova senha mínimo 6 caracteres", "error"); return; }
+    setSaving(true);
+    try {
+      await api.trocarSenha(form.senhaAtual, form.novaSenha);
+      toast("Senha alterada com sucesso!", "success");
+      onClose();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Modal title="Alterar Senha" onClose={onClose}>
+      <div className="space-y-4">
+        <Input label="Senha atual" type="password" value={form.senhaAtual}
+          onChange={e => setForm(f=>({...f, senhaAtual: e.target.value}))}/>
+        <Input label="Nova senha" type="password" value={form.novaSenha}
+          onChange={e => setForm(f=>({...f, novaSenha: e.target.value}))}/>
+        <Input label="Confirmar nova senha" type="password" value={form.confirmar}
+          onChange={e => setForm(f=>({...f, confirmar: e.target.value}))}/>
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Cancelar</button>
+          <button onClick={salvar} disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:bg-gray-300">
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════════// DASHBOARD
 // ══════════════════════════════════════════════════════════════════════════════
 const Dashboard = ({ toners, pedidos, saidas }) => {
   const criticos         = toners.filter(t => t.estoque <= t.estoqueMinimo).length;
@@ -796,16 +883,35 @@ const Saida = ({ toners, setToners, saidas, setSaidas, toast }) => {
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════════════
 export default function App() {
-  const [tela,     setTela]     = useState("dashboard");
-  const [toners,   setToners]   = useState([]);
-  const [pedidos,  setPedidos]  = useState([]);
-  const [saidas,   setSaidas]   = useState([]);
-  const [entradas, setEntradas] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [toastMsg, setToastMsg] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [tela,      setTela]      = useState("dashboard");
+  const [toners,    setToners]    = useState([]);
+  const [pedidos,   setPedidos]   = useState([]);
+  const [saidas,    setSaidas]    = useState([]);
+  const [entradas,  setEntradas]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [toastMsg,  setToastMsg]  = useState(null);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [modalSenha,setModalSenha]= useState(false);
+
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
+  });
 
   const toast = (msg, type="info") => setToastMsg({ msg, type });
+
+  const handleLogin = (u) => setUser(u);
+
+  const handleLogout = () => {
+    api.logout();
+    setUser(null);
+    setToners([]); setPedidos([]); setEntradas([]); setSaidas([]);
+  };
+
+  useEffect(() => {
+    const onLogout = () => handleLogout();
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, []);
 
   const carregarDados = useCallback(async () => {
     setLoading(true);
@@ -818,7 +924,9 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { carregarDados(); }, [carregarDados]);
+  useEffect(() => { if (user) carregarDados(); }, [user, carregarDados]);
+
+  if (!user) return <Login onLogin={handleLogin}/>;
 
   const alertasCriticos = toners.filter(t => t.estoque <= t.estoqueMinimo).length;
 
@@ -855,7 +963,25 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="px-5 py-4 border-t border-gray-100 text-xs text-gray-400 text-center">v1.0 · {hoje()}</div>
+        <div className="px-5 py-4 border-t border-gray-100">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <span className="text-blue-700 text-xs font-black">{user?.nome?.[0]?.toUpperCase()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-800 truncate">{user?.nome}</div>
+              <div className="text-xs text-gray-400 truncate">{user?.username}</div>
+            </div>
+          </div>
+          <button onClick={() => setModalSenha(true)}
+            className="w-full text-left px-3 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 mb-1">
+            Alterar senha
+          </button>
+          <button onClick={handleLogout}
+            className="w-full text-left px-3 py-2 rounded-lg text-xs text-red-500 hover:bg-red-50 font-medium">
+            Sair da conta
+          </button>
+        </div>
       </aside>
 
       {/* Mobile header */}
@@ -906,6 +1032,7 @@ export default function App() {
       </main>
 
       {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)}/>}
+      {modalSenha && <TrocarSenha onClose={() => setModalSenha(false)} toast={toast}/>}
     </div>
   );
 }

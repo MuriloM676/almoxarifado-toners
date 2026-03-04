@@ -3,8 +3,10 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-almox_secret_troque_em_producao}
     volumes:
-      - db_data:/app
+      - db_data:/app/data
     networks:
       - app
 
