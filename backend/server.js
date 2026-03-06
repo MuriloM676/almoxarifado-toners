@@ -7,8 +7,13 @@ const bcrypt = require("bcryptjs");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || "almox_secret_dev_change_in_prod";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES = "8h";
+
+if (!JWT_SECRET) {
+  console.error("❌ ERRO FATAL: variável de ambiente JWT_SECRET não definida. Defina-a no arquivo .env antes de iniciar.");
+  process.exit(1);
+}
 
 app.use(cors());
 app.use(express.json());

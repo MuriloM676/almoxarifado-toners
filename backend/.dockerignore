@@ -1,0 +1,7 @@
+node_modules/
+migrate.js
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
