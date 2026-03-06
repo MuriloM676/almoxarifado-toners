@@ -454,10 +454,9 @@ const Estoque = ({ toners, setToners, toast }) => {
           <div className="space-y-3">
             <Input label="Modelo *" value={form.modelo} onChange={e => setForm(f=>({...f,modelo:e.target.value}))} placeholder="ex: HP 85A (CE285A)" />
             <Input label="Impressora *" value={form.impressora} onChange={e => setForm(f=>({...f,impressora:e.target.value}))} placeholder="ex: HP LaserJet P1102" />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Input label="Estoque *" type="number" min="0" value={form.estoque} onChange={e => setForm(f=>({...f,estoque:e.target.value}))} />
               <Input label="Mínimo *"  type="number" min="0" value={form.estoqueMinimo} onChange={e => setForm(f=>({...f,estoqueMinimo:e.target.value}))} />
-              <Input label="Preço (R$)" type="number" min="0" step="0.01" value={form.preco} onChange={e => setForm(f=>({...f,preco:e.target.value}))} />
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setModal(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Cancelar</button>
