@@ -288,6 +288,7 @@ const Estoque = ({ toners, setToners, toast }) => {
   const [busca,     setBusca]     = useState("");
   const [filtro,    setFiltro]    = useState("todos");
   const [modal,     setModal]     = useState(null); // null | "novo" | toner
+  const [confirmarExclusao, setConfirmarExclusao] = useState(null); // null | toner
   const [saving,    setSaving]    = useState(false);
   const [form, setForm] = useState({ modelo:"", impressora:"", cor:"Preto", estoque:"", estoqueMinimo:"", preco:"" });
   const [pagina,    setPagina]    = useState(1);
@@ -330,12 +331,14 @@ const Estoque = ({ toners, setToners, toast }) => {
     setSaving(false);
   };
 
-  const excluir = async id => {
+  const excluir = async () => {
+    const id = confirmarExclusao.id;
     try {
       await api.deleteToner(id);
       setToners(p => p.filter(t => t.id !== id));
       toast("Toner removido", "info");
     } catch { toast("Erro ao remover", "error"); }
+    setConfirmarExclusao(null);
   };
 
   return (
@@ -391,7 +394,7 @@ const Estoque = ({ toners, setToners, toast }) => {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => abrirEdit(t)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600"><Icon name="edit" size={15}/></button>
-                        <button onClick={() => excluir(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Icon name="trash" size={15}/></button>
+                        <button onClick={() => setConfirmarExclusao(t)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Icon name="trash" size={15}/></button>
                       </div>
                     </td>
                   </tr>
@@ -400,6 +403,30 @@ const Estoque = ({ toners, setToners, toast }) => {
           </table>
         </div>
       </div>
+
+      {/* Modal confirmação exclusão */}
+      {confirmarExclusao && (
+        <Modal title="Excluir Toner" onClose={() => setConfirmarExclusao(null)}>
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800 space-y-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="alert" size={18} className="text-red-500 shrink-0"/>
+                <span className="font-semibold">Esta ação não pode ser desfeita.</span>
+              </div>
+              <div>Você está prestes a excluir o toner <strong>{confirmarExclusao.modelo}</strong>.</div>
+              {confirmarExclusao.estoque > 0 && (
+                <div className="mt-2 text-red-600 font-medium">⚠️ Este toner ainda possui <strong>{confirmarExclusao.estoque}</strong> unidade(s) em estoque.</div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmarExclusao(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Cancelar</button>
+              <button onClick={excluir}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold">Sim, excluir</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Paginação */}
       {totalPaginas > 1 && (
