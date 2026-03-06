@@ -279,6 +279,8 @@ const Estoque = ({ toners, setToners, toast }) => {
   const [modal,     setModal]     = useState(null); // null | "novo" | toner
   const [saving,    setSaving]    = useState(false);
   const [form, setForm] = useState({ modelo:"", impressora:"", cor:"Preto", estoque:"", estoqueMinimo:"", preco:"" });
+  const [pagina,    setPagina]    = useState(1);
+  const POR_PAGINA = 10;
 
   const filtrados = toners.filter(t => {
     const ok = t.modelo.toLowerCase().includes(busca.toLowerCase()) || t.impressora.toLowerCase().includes(busca.toLowerCase());
@@ -286,6 +288,12 @@ const Estoque = ({ toners, setToners, toast }) => {
     if (filtro === "zerados")  return ok && t.estoque === 0;
     return ok;
   });
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginados    = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+
+  const mudarBusca  = v => { setBusca(v);  setPagina(1); };
+  const mudarFiltro = v => { setFiltro(v); setPagina(1); };
 
   const abrirNovo  = () => { setForm({ modelo:"", impressora:"", cor:"Preto", estoque:"", estoqueMinimo:"", preco:"" }); setModal("novo"); };
   const abrirEdit  = t  => { setForm({ modelo:t.modelo, impressora:t.impressora, cor:t.cor, estoque:t.estoque, estoqueMinimo:t.estoqueMinimo, preco:t.preco }); setModal(t); };
@@ -333,11 +341,11 @@ const Estoque = ({ toners, setToners, toast }) => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar modelo ou impressora..."
+        <input value={busca} onChange={e => mudarBusca(e.target.value)} placeholder="Buscar modelo ou impressora..."
           className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
         <div className="flex gap-2">
           {[["todos","Todos"],["criticos","Críticos"],["zerados","Zerados"]].map(([v,l]) => (
-            <button key={v} onClick={() => setFiltro(v)}
+            <button key={v} onClick={() => mudarFiltro(v)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${filtro===v?"bg-blue-600 text-white":"bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>{l}</button>
           ))}
         </div>
@@ -358,7 +366,7 @@ const Estoque = ({ toners, setToners, toast }) => {
             <tbody className="divide-y divide-gray-50">
               {filtrados.length === 0
                 ? <tr><td colSpan={5} className="text-center py-10 text-gray-400">Nenhum toner encontrado</td></tr>
-                : filtrados.map(t => (
+                : paginados.map(t => (
                   <tr key={t.id} className="hover:bg-gray-50">
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-gray-800">{t.modelo}</div>
@@ -381,6 +389,27 @@ const Estoque = ({ toners, setToners, toast }) => {
           </table>
         </div>
       </div>
+
+      {/* Paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-500">
+            Exibindo {(pagina - 1) * POR_PAGINA + 1}–{Math.min(pagina * POR_PAGINA, filtrados.length)} de {filtrados.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">← Anterior</button>
+            {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+              <button key={n} onClick={() => setPagina(n)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  n === pagina ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}>{n}</button>
+            ))}
+            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Próxima →</button>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <Modal title={modal==="novo"?"Novo Toner":"Editar Toner"} onClose={() => setModal(null)}>
