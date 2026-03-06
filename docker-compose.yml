@@ -6,7 +6,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-almox_secret_troque_em_producao}
     volumes:
-      - db_data:/app/data
+      - ./backend/data:/app/data
     networks:
       - app
 
@@ -20,9 +20,6 @@ services:
       - backend
     networks:
       - app
-
-volumes:
-  db_data:
 
 networks:
   app:

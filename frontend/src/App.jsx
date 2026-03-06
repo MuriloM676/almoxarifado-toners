@@ -2,7 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
 
 // ── Constantes ───────────────────────────────────────────────────────────────
-const SETORES = ["Administrativo","RH","Financeiro","TI","Operacional","Diretoria","Recepção","Jurídico"];
+const SETORES = [
+  "Acessa SP Centro","Acessa SP Cohab","Almox Educacao","Anglicano C1","Anglicano C3",
+  "Arquivo","Augusto Reis","Bordini","Cadastro Único","CAPS","CCI","Centro Cultural",
+  "Conselho Tutelar","Creas","Creche Dagina","CS1","CS2","Cultura","Dona Lola","Educação",
+  "Escola Dagina","Esporte","Geraldo Pascon","Gestão","Guarda Municipal","Helio da Silva",
+  "Ida Inocente","Leonor","Meio Ambiente","Merenda","Milton Monti","Policlínica",
+  "Posto Aparecida","Posto Raphael","Posto Santa Monica","Posto São Geraldo","Posto Vila Rica",
+  "Prefeitura","Prefeitura Aparecida","Promoção Aparecida","Promoção São Geraldo","Promoção Social",
+  "Saúde","Segurança do Trabalho","S.I.M","Transporte","Turismo","UAMAS",
+  "Vigilância Epidemiológica/UVA","Walter Carrer","Zigomar Augusto",
+];
 const STATUS  = { PENDENTE: "Pendente", APROVADO: "Aprovado", RECEBIDO: "Recebido", CANCELADO: "Cancelado" };
 const COR_STATUS = {
   Pendente:  "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -32,6 +42,7 @@ const PATHS = {
   plus:      "M12 4v16m8-8H4",
   download:  "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4",
   menu:      "M4 6h16M4 12h16M4 18h16",
+  chart:     "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
 };
 
 const Icon = ({ name, size = 20, className = "" }) => (
@@ -525,7 +536,26 @@ const Pedidos = ({ toners, pedidos, setPedidos, toast }) => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="px-5 py-3.5 w-10"></th>
+                          <th className="px-5 py-3.5 w-10">
+                            <input type="checkbox"
+                              className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                              checked={criticos.length > 0 && selecionados.length === criticos.length}
+                              onChange={() => {
+                                if (selecionados.length === criticos.length) {
+                                  setSelecionados([]);
+                                } else {
+                                  setSelecionados(criticos.map(t => t.id));
+                                  setQtds(q => {
+                                    const novo = { ...q };
+                                    criticos.forEach(t => {
+                                      if (!novo[t.id]) novo[t.id] = Math.max(1, t.estoqueMinimo * 2 - t.estoque);
+                                    });
+                                    return novo;
+                                  });
+                                }
+                              }}
+                            />
+                          </th>
                           <th className="text-left px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Modelo</th>
                           <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Atual</th>
                           <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Mín.</th>
@@ -856,26 +886,7 @@ const Saida = ({ toners, setToners, saidas, setSaidas, toast }) => {
                 ))}
               </div>
           }
-          {saidas.length > 0 && (
-            <div className="border-t border-gray-100 px-5 py-4">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-3">Consumo por setor</div>
-              <div className="space-y-2">
-                {SETORES.filter(s => saidas.some(x=>x.setor===s)).map(s => {
-                  const total = saidas.filter(x=>x.setor===s).reduce((a,x)=>a+x.quantidade,0);
-                  const max   = Math.max(...SETORES.map(ss => saidas.filter(x=>x.setor===ss).reduce((a,x)=>a+x.quantidade,0)));
-                  return (
-                    <div key={s} className="flex items-center gap-2">
-                      <div className="text-xs text-gray-600 w-24 truncate">{s}</div>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2">
-                        <div className="bg-purple-500 h-2 rounded-full" style={{width:`${(total/max)*100}%`}}></div>
-                      </div>
-                      <div className="text-xs font-bold text-gray-700 w-6 text-right">{total}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
       {confirmar && (
@@ -907,6 +918,191 @@ const Saida = ({ toners, setToners, saidas, setSaidas, toast }) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// RELATÓRIOS
+// ══════════════════════════════════════════════════════════════════════════════
+const CORES_GRAFICO = [
+  "bg-blue-500","bg-purple-500","bg-green-500","bg-orange-500","bg-red-500",
+  "bg-teal-500","bg-pink-500","bg-yellow-500","bg-indigo-500","bg-cyan-500",
+];
+
+const Relatorios = ({ saidas, entradas }) => {
+  const [periodo, setPeriodo] = useState("tudo");
+  const [topN,    setTopN]    = useState(10);
+
+  const filtrar = (lista) => {
+    if (periodo === "tudo") return lista;
+    const agora = new Date();
+    return lista.filter(item => {
+      const d = new Date(item.data);
+      if (isNaN(d)) return false;
+      if (periodo === "mes")  return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+      if (periodo === "ano")  return d.getFullYear() === agora.getFullYear();
+      if (periodo === "90d")  return (agora - d) <= 90 * 864e5;
+      return true;
+    });
+  };
+
+  const saidasFilt   = filtrar(saidas);
+  const entradasFilt = filtrar(entradas);
+
+  // Consumo por setor
+  const porSetor = Object.entries(
+    saidasFilt.reduce((acc, s) => {
+      const setor = (s.setor || "Sem setor").trim();
+      acc[setor] = (acc[setor] || 0) + s.quantidade;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]);
+
+  // Toners que mais saem
+  const porToner = Object.entries(
+    saidasFilt.reduce((acc, s) => {
+      const modelo = (s.tonerModelo || "?").trim();
+      acc[modelo] = (acc[modelo] || 0) + s.quantidade;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, topN);
+
+  // Toners que mais entram
+  const porTonerEntrada = Object.entries(
+    entradasFilt.reduce((acc, e) => {
+      const modelo = (e.tonerModelo || "?").trim();
+      acc[modelo] = (acc[modelo] || 0) + e.quantidade;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, topN);
+
+  const maxSetor  = porSetor[0]?.[1]  || 1;
+  const maxToner  = porToner[0]?.[1]  || 1;
+  const maxEntrada= porTonerEntrada[0]?.[1] || 1;
+
+  const totalSaidas   = saidasFilt.reduce((a, s) => a + s.quantidade, 0);
+  const totalEntradas = entradasFilt.reduce((a, e) => a + e.quantidade, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Relatórios</h1>
+          <p className="text-gray-500 text-sm">{saidasFilt.length} saídas · {entradasFilt.length} entradas no período</p>
+        </div>
+        <select value={periodo} onChange={e => setPeriodo(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="tudo">Todo o período</option>
+          <option value="ano">Este ano</option>
+          <option value="90d">Últimos 90 dias</option>
+          <option value="mes">Este mês</option>
+        </select>
+      </div>
+
+      {/* Cards resumo */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label:"Total de Saídas",   value:totalSaidas,          color:"text-purple-600", bg:"bg-purple-50" },
+          { label:"Total de Entradas",  value:totalEntradas,         color:"text-blue-600",   bg:"bg-blue-50"   },
+          { label:"Setores Atendidos",  value:porSetor.length,       color:"text-green-600",  bg:"bg-green-50"  },
+          { label:"Modelos em Saída",   value:Object.keys(saidasFilt.reduce((a,s)=>{a[s.tonerModelo]=1;return a},{})).length, color:"text-orange-600", bg:"bg-orange-50" },
+        ].map(c => (
+          <div key={c.label} className={`${c.bg} rounded-2xl p-4`}>
+            <div className={`text-2xl font-black ${c.color}`}>{c.value}</div>
+            <div className="text-xs text-gray-500 mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Consumo por Setor */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Icon name="exit" size={18} className="text-purple-600"/>
+            <h2 className="font-bold text-gray-800">Consumo por Setor</h2>
+          </div>
+          <span className="text-xs text-gray-400">{porSetor.length} setores</span>
+        </div>
+        {porSetor.length === 0
+          ? <p className="text-sm text-gray-400 text-center py-8">Sem dados no período</p>
+          : <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              {porSetor.map(([setor, total], i) => (
+                <div key={setor} className="flex items-center gap-3">
+                  <div className="text-xs text-gray-500 w-4 text-right">{i+1}.</div>
+                  <div className="text-sm text-gray-700 w-40 truncate shrink-0" title={setor}>{setor}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3">
+                    <div className={`${CORES_GRAFICO[i % CORES_GRAFICO.length]} h-3 rounded-full transition-all`}
+                      style={{width:`${(total/maxSetor)*100}%`}}></div>
+                  </div>
+                  <div className="text-sm font-bold text-gray-700 w-8 text-right shrink-0">{total}</div>
+                </div>
+              ))}
+            </div>
+        }
+      </div>
+
+      {/* Toners que mais saem + Toners que mais entram */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Mais saem */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Icon name="chart" size={18} className="text-rose-500"/>
+              <h2 className="font-bold text-gray-800">Toners que mais saem</h2>
+            </div>
+            <select value={topN} onChange={e => setTopN(+e.target.value)}
+              className="text-xs px-2 py-1 rounded-lg border border-gray-200 bg-white focus:outline-none">
+              <option value={5}>Top 5</option>
+              <option value={10}>Top 10</option>
+              <option value={20}>Top 20</option>
+            </select>
+          </div>
+          {porToner.length === 0
+            ? <p className="text-sm text-gray-400 text-center py-8">Sem dados no período</p>
+            : <div className="space-y-3">
+                {porToner.map(([modelo, total], i) => (
+                  <div key={modelo} className="flex items-center gap-3">
+                    <div className="text-xs text-gray-500 w-4 text-right">{i+1}.</div>
+                    <div className="text-sm font-medium text-gray-700 w-24 truncate shrink-0" title={modelo}>{modelo}</div>
+                    <div className="flex-1 bg-gray-100 rounded-full h-3">
+                      <div className="bg-rose-500 h-3 rounded-full transition-all"
+                        style={{width:`${(total/maxToner)*100}%`}}></div>
+                    </div>
+                    <div className="text-sm font-bold text-rose-600 w-8 text-right shrink-0">{total}</div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+
+        {/* Mais entram */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Icon name="chart" size={18} className="text-blue-500"/>
+              <h2 className="font-bold text-gray-800">Toners que mais entram</h2>
+            </div>
+          </div>
+          {porTonerEntrada.length === 0
+            ? <p className="text-sm text-gray-400 text-center py-8">Sem dados no período</p>
+            : <div className="space-y-3">
+                {porTonerEntrada.map(([modelo, total], i) => (
+                  <div key={modelo} className="flex items-center gap-3">
+                    <div className="text-xs text-gray-500 w-4 text-right">{i+1}.</div>
+                    <div className="text-sm font-medium text-gray-700 w-24 truncate shrink-0" title={modelo}>{modelo}</div>
+                    <div className="flex-1 bg-gray-100 rounded-full h-3">
+                      <div className="bg-blue-500 h-3 rounded-full transition-all"
+                        style={{width:`${(total/maxEntrada)*100}%`}}></div>
+                    </div>
+                    <div className="text-sm font-bold text-blue-600 w-8 text-right shrink-0">{total}</div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════════════
 export default function App() {
@@ -958,11 +1154,12 @@ export default function App() {
   const alertasCriticos = toners.filter(t => t.estoque <= t.estoqueMinimo).length;
 
   const nav = [
-    { id:"dashboard", label:"Dashboard",      icon:"dashboard" },
-    { id:"estoque",   label:"Estoque",         icon:"stock"     },
-    { id:"pedidos",   label:"Pedidos",          icon:"order",  badge:alertasCriticos },
-    { id:"entrada",   label:"Entrada",          icon:"entry"     },
-    { id:"saida",     label:"Saída por Setor",  icon:"exit"      },
+    { id:"dashboard",  label:"Dashboard",      icon:"dashboard" },
+    { id:"estoque",    label:"Estoque",         icon:"stock"     },
+    { id:"pedidos",    label:"Pedidos",          icon:"order",  badge:alertasCriticos },
+    { id:"entrada",    label:"Entrada",          icon:"entry"     },
+    { id:"saida",      label:"Saída por Setor",  icon:"exit"      },
+    { id:"relatorios", label:"Relatórios",        icon:"chart"     },
   ];
 
   return (
@@ -1048,11 +1245,12 @@ export default function App() {
           {loading
             ? <Spinner/>
             : <>
-                {tela==="dashboard" && <Dashboard toners={toners} pedidos={pedidos} saidas={saidas}/>}
-                {tela==="estoque"   && <Estoque   toners={toners} setToners={setToners} toast={toast}/>}
-                {tela==="pedidos"   && <Pedidos   toners={toners} pedidos={pedidos} setPedidos={setPedidos} toast={toast}/>}
-                {tela==="entrada"   && <Entrada   toners={toners} setToners={setToners} entradas={entradas} setEntradas={setEntradas} toast={toast}/>}
-                {tela==="saida"     && <Saida     toners={toners} setToners={setToners} saidas={saidas} setSaidas={setSaidas} toast={toast}/>}
+                {tela==="dashboard"  && <Dashboard  toners={toners} pedidos={pedidos} saidas={saidas}/>}
+                {tela==="estoque"    && <Estoque    toners={toners} setToners={setToners} toast={toast}/>}
+                {tela==="pedidos"    && <Pedidos    toners={toners} pedidos={pedidos} setPedidos={setPedidos} toast={toast}/>}
+                {tela==="entrada"    && <Entrada    toners={toners} setToners={setToners} entradas={entradas} setEntradas={setEntradas} toast={toast}/>}
+                {tela==="saida"      && <Saida      toners={toners} setToners={setToners} saidas={saidas} setSaidas={setSaidas} toast={toast}/>}
+                {tela==="relatorios" && <Relatorios saidas={saidas} entradas={entradas}/>}
               </>
           }
         </div>
