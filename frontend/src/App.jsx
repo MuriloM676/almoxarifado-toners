@@ -352,13 +352,12 @@ const Estoque = ({ toners, setToners, toast }) => {
                 <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Estoque</th>
                 <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Mín.</th>
                 <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase">Valor Unit.</th>
                 <th className="px-4 py-3.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtrados.length === 0
-                ? <tr><td colSpan={6} className="text-center py-10 text-gray-400">Nenhum toner encontrado</td></tr>
+                ? <tr><td colSpan={5} className="text-center py-10 text-gray-400">Nenhum toner encontrado</td></tr>
                 : filtrados.map(t => (
                   <tr key={t.id} className="hover:bg-gray-50">
                     <td className="px-5 py-3.5">
@@ -370,7 +369,6 @@ const Estoque = ({ toners, setToners, toast }) => {
                     </td>
                     <td className="px-4 py-3.5 text-center text-gray-500 font-medium">{t.estoqueMinimo}</td>
                     <td className="px-4 py-3.5 text-center"><Badge estoque={t.estoque} minimo={t.estoqueMinimo} /></td>
-                    <td className="px-5 py-3.5 text-right text-gray-700 font-medium">R$ {(+t.preco).toFixed(2)}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => abrirEdit(t)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600"><Icon name="edit" size={15}/></button>

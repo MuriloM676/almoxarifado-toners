@@ -1,6 +1,18 @@
 #!/bin/bash
 echo "🚀 Iniciando Almoxarifado de Toners..."
 
+# Instala dependências do backend se necessário
+if [ ! -d "backend/node_modules" ]; then
+  echo "📦 Instalando dependências do backend..."
+  (cd backend && npm install)
+fi
+
+# Instala dependências do frontend se necessário
+if [ ! -d "frontend/node_modules" ]; then
+  echo "📦 Instalando dependências do frontend..."
+  (cd frontend && npm install)
+fi
+
 # Backend
 cd backend
 node server.js &
