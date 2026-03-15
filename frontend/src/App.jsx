@@ -1185,7 +1185,7 @@ export default function App() {
     { id:"pedidos",    label:"Pedidos",          icon:"order",  badge:alertasCriticos },
     { id:"entrada",    label:"Entrada",          icon:"entry"     },
     { id:"saida",      label:"Saída por Setor",  icon:"exit"      },
-    { id:"relatorios", label:"Relatórios",        icon:"chart"     },
+    { id:"relatorios", label:"Relatórios",        icon:"chart", badge:0 },
   ];
 
   return (

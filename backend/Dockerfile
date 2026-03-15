@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY server.js ./
+COPY app.js ./
 
 RUN mkdir -p /app/data
 
