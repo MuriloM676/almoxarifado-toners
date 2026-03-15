@@ -61,4 +61,18 @@ export const api = {
   // Saídas
   getSaidas:    ()       => req("GET",    "/saidas"),
   createSaida:  (data)   => req("POST",   "/saidas", data),
+  // Usuários (admin)
+  getUsers:    ()       => req("GET",    "/users"),
+  createUser:  (data)   => req("POST",   "/users", data),
+  updateUser:  (id, d)  => req("PUT",    `/users/${id}`, d),
+  deleteUser:  (id)     => req("DELETE", `/users/${id}`),
+
+  // Auditoria (admin)
+  getAudit:    ()       => req("GET",    "/audit"),
+
+  // Histórico de movimentações
+  getHistorico: (params={}) => {
+    const q = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return req("GET", `/historico${q ? '?' + q : ''}`);
+  },
 };

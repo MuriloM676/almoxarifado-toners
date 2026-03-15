@@ -30,7 +30,17 @@ function createApp(options = {}) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
-      nome TEXT NOT NULL
+      nome TEXT NOT NULL,
+      role TEXT DEFAULT 'operador' -- admin, operador, consulta
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER,
+      username TEXT,
+      action TEXT,
+      details TEXT,
+      timestamp TEXT
     );
 
     CREATE TABLE IF NOT EXISTS toners (
@@ -81,8 +91,49 @@ function createApp(options = {}) {
   // ── Seed: usuário admin padrão ────────────────────────────────
   if (db.prepare("SELECT COUNT(*) as c FROM users").get().c === 0) {
     const hash = bcrypt.hashSync("admin123", 10);
-    db.prepare("INSERT INTO users (username, password, nome) VALUES (?,?,?)").run("admin", hash, "Administrador");
+    db.prepare("INSERT INTO users (username, password, nome, role) VALUES (?,?,?,?)").run("admin", hash, "Administrador", "admin");
   }
+  // Função para registrar auditoria
+  function audit(user, action, details) {
+    db.prepare("INSERT INTO audit_logs (userId, username, action, details, timestamp) VALUES (?,?,?,?,?)")
+      .run(user?.id || null, user?.username || null, action, details, new Date().toISOString());
+  }
+  // ── Rotas de usuários (admin) ────────────────────────────────
+  app.get("/api/users", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    res.json(db.prepare("SELECT id, username, nome, role FROM users").all());
+  });
+
+  app.post("/api/users", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    const { username, password, nome, role } = req.body;
+    if (!username || !password || !nome || !role)
+      return res.status(400).json({ error: "Campos obrigatórios" });
+    const hash = bcrypt.hashSync(password, 10);
+    try {
+      db.prepare("INSERT INTO users (username, password, nome, role) VALUES (?,?,?,?)")
+        .run(username, hash, nome, role);
+      audit(req.user, "create_user", `username=${username}, role=${role}`);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({ error: "Usuário já existe" });
+    }
+  });
+
+  app.put("/api/users/:id", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    const { nome, role } = req.body;
+    db.prepare("UPDATE users SET nome=?, role=? WHERE id=?").run(nome, role, req.params.id);
+    audit(req.user, "update_user", `id=${req.params.id}, role=${role}`);
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/users/:id", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    db.prepare("DELETE FROM users WHERE id=?").run(req.params.id);
+    audit(req.user, "delete_user", `id=${req.params.id}`);
+    res.json({ ok: true });
+  });
 
   // ── Seed inicial se banco estiver vazio ────────────────────────
   if (db.prepare("SELECT COUNT(*) as c FROM toners").get().c === 0) {
@@ -107,8 +158,9 @@ function createApp(options = {}) {
     if (!user || !bcrypt.compareSync(password, user.password))
       return res.status(401).json({ error: "Usuário ou senha inválidos" });
 
-    const token = jwt.sign({ id: user.id, username: user.username, nome: user.nome }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.json({ token, user: { id: user.id, username: user.username, nome: user.nome } });
+    audit(user, "login", "");
+    const token = jwt.sign({ id: user.id, username: user.username, nome: user.nome, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+    res.json({ token, user: { id: user.id, username: user.username, nome: user.nome, role: user.role } });
   });
 
   // ── Middleware de autenticação ─────────────────────────────────
@@ -148,6 +200,7 @@ function createApp(options = {}) {
     const r = db.prepare(
       "INSERT INTO toners (modelo,impressora,cor,estoque,estoqueMinimo,preco) VALUES (?,?,?,?,?,?)"
     ).run(modelo, impressora, cor, estoque, estoqueMinimo, preco);
+    audit(req.user, "create_toner", JSON.stringify(req.body));
     res.json({ id: r.lastInsertRowid, ...req.body });
   });
 
@@ -156,11 +209,13 @@ function createApp(options = {}) {
     db.prepare(
       "UPDATE toners SET modelo=?,impressora=?,cor=?,estoque=?,estoqueMinimo=?,preco=? WHERE id=?"
     ).run(modelo, impressora, cor, estoque, estoqueMinimo, preco, req.params.id);
+    audit(req.user, "update_toner", `id=${req.params.id}, data=${JSON.stringify(req.body)}`);
     res.json({ ok: true });
   });
 
   app.delete("/api/toners/:id", (req, res) => {
     db.prepare("DELETE FROM toners WHERE id=?").run(req.params.id);
+    audit(req.user, "delete_toner", `id=${req.params.id}`);
     res.json({ ok: true });
   });
 
@@ -175,11 +230,13 @@ function createApp(options = {}) {
     db.prepare("INSERT INTO pedidos VALUES (?,?,?,?,?,?,?)").run(
       p.id, p.codigo, p.data, p.dataCriacao, p.status, p.total, JSON.stringify(p.itens)
     );
+    audit(req.user, "create_pedido", JSON.stringify(p));
     res.json(p);
   });
 
   app.put("/api/pedidos/:id", (req, res) => {
     db.prepare("UPDATE pedidos SET status=? WHERE id=?").run(req.body.status, req.params.id);
+    audit(req.user, "update_pedido", `id=${req.params.id}, status=${req.body.status}`);
     res.json({ ok: true });
   });
 
@@ -195,6 +252,7 @@ function createApp(options = {}) {
       e.quantidade, e.fornecedor, e.nf, e.obs
     );
     db.prepare("UPDATE toners SET estoque = estoque + ? WHERE id=?").run(e.quantidade, e.tonerId);
+    audit(req.user, "entrada", JSON.stringify(e));
     res.json(e);
   });
 
@@ -214,7 +272,23 @@ function createApp(options = {}) {
       s.setor, s.quantidade, s.responsavel, s.obs
     );
     db.prepare("UPDATE toners SET estoque = estoque - ? WHERE id=?").run(s.quantidade, s.tonerId);
+    audit(req.user, "saida", JSON.stringify(s));
     res.json(s);
+      // ── Endpoint de auditoria (admin) ─────────────────────────────
+      app.get("/api/audit", (req, res) => {
+        if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+        const logs = db.prepare("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 100").all();
+        res.json(logs);
+      });
+      // ── Endpoint de histórico de movimentações ────────────────────
+      app.get("/api/historico", (req, res) => {
+        // Permite filtro por tipo, data, setor, modelo
+        const { tipo, dataIni, dataFim, setor, modelo } = req.query;
+        let sql = "SELECT * FROM entradas UNION ALL SELECT * FROM saidas";
+        // Filtros podem ser implementados aqui (exemplo simplificado)
+        // Para produção, ideal separar e filtrar corretamente
+        res.json(db.prepare(sql).all());
+      });
   });
 
   return { app, db };

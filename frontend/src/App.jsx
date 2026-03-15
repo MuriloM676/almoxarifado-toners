@@ -944,7 +944,6 @@ const Saida = ({ toners, setToners, saidas, setSaidas, toast }) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════════════════════
 // RELATÓRIOS
 // ══════════════════════════════════════════════════════════════════════════════
 const CORES_GRAFICO = [
@@ -1131,6 +1130,192 @@ const Relatorios = ({ saidas, entradas }) => {
 
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════════════
+
+// Componentes para as telas não implementadas
+function Historico() {
+  const [dados, setDados] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api.getHistorico().then(setDados).catch(() => setDados([])).finally(() => setLoading(false)); }, []);
+  if (loading) return <Spinner/>;
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Histórico de Movimentações</h1>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {dados?.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Nenhum registro de histórico encontrado</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Data/Hora</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Tipo</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Toner</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Quantidade</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Setor/Fornecedor</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Responsável</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {dados.map((item, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-600">{item.dataHora || item.timestamp}</td>
+                    <td className="px-4 py-3">
+                      {item.setor ? <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">Saída</span> : <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">Entrada</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-800 font-medium">{item.tonerModelo}</td>
+                    <td className="px-4 py-3 text-gray-600">{item.setor ? `-${item.quantidade}` : `+${item.quantidade}`}</td>
+                    <td className="px-4 py-3 text-gray-600">{item.setor || item.fornecedor || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">{item.responsavel || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Usuarios({ toast }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ username: "", password: "", nome: "", role: "operador" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { carregarUsers(); }, []);
+
+  const carregarUsers = async () => {
+    setLoading(true);
+    try {
+      const u = await api.getUsers();
+      setUsers(u);
+    } catch (err) {
+      setUsers([]);
+    }
+    setLoading(false);
+  };
+
+  const criarUsuario = async () => {
+    if (!form.username || !form.password || !form.nome || !form.role) {
+      toast("Preencha todos os campos", "error");
+      return;
+    }
+    if (form.password.length < 6) {
+      toast("Senha deve ter pelo menos 6 caracteres", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.createUser(form);
+      toast("Usuário criado com sucesso!", "success");
+      setForm({ username: "", password: "", nome: "", role: "operador" });
+      carregarUsers();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+    setSaving(false);
+  };
+
+  if (loading) return <Spinner/>;
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Usuários</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+          <h2 className="font-bold text-gray-800 flex items-center gap-2"><Icon name="plus" size={18} className="text-blue-600"/>Novo Usuário</h2>
+          <Input label="Nome completo *" value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} placeholder="Nome do usuário"/>
+          <Input label="Usuário *" value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} placeholder="Nome de usuário"/>
+          <Input label="Senha *" type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="••••••••"/>
+          <Select label="Função *" value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))}>
+            <option value="operador">Operador</option>
+            <option value="admin">Administrador</option>
+          </Select>
+          <button onClick={criarUsuario} disabled={saving}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-xl text-sm font-semibold shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
+            <Icon name="plus" size={16}/> {saving ? "Criando..." : "Criar Usuário"}
+          </button>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <Icon name="printer" size={18} className="text-blue-600"/>
+            <h2 className="font-bold text-gray-800">Usuários Cadastrados</h2>
+          </div>
+          {users.length === 0 ? (
+            <div className="p-10 text-center text-gray-400 text-sm"><Icon name="printer" size={36} className="mx-auto mb-3 opacity-25"/>Nenhum usuário cadastrado</div>
+          ) : (
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Nome</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Usuário</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Função</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-800 font-medium">{user.nome}</td>
+                      <td className="px-4 py-3 text-gray-600">{user.username}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Auditoria() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api.getAudit().then(setLogs).catch(() => setLogs([])).finally(() => setLoading(false)); }, []);
+  if (loading) return <Spinner/>;
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Auditoria</h1>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {logs?.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Nenhum log de auditoria encontrado</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Data/Hora</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Usuário</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Ação</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-600">{new Date(log.timestamp).toLocaleString('pt-BR')}</td>
+                    <td className="px-4 py-3 text-gray-800 font-medium">{log.username}</td>
+                    <td className="px-4 py-3 text-gray-600">{log.action}</td>
+                    <td className="px-4 py-3 text-gray-600">{log.details}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tela,      setTela]      = useState("dashboard");
   const [toners,    setToners]    = useState([]);
@@ -1179,13 +1364,20 @@ export default function App() {
 
   const alertasCriticos = toners.filter(t => t.estoque <= t.estoqueMinimo).length;
 
+  // Exemplo: menu para admin
+  const isAdmin = user?.role === "admin";
   const nav = [
     { id:"dashboard",  label:"Dashboard",      icon:"dashboard" },
     { id:"estoque",    label:"Estoque",         icon:"stock"     },
-    { id:"pedidos",    label:"Pedidos",          icon:"order",  badge:alertasCriticos },
-    { id:"entrada",    label:"Entrada",          icon:"entry"     },
-    { id:"saida",      label:"Saída por Setor",  icon:"exit"      },
-    { id:"relatorios", label:"Relatórios",        icon:"chart", badge:0 },
+    { id:"pedidos",    label:"Pedidos",         icon:"order"     },
+    { id:"entradas",   label:"Entradas",        icon:"entry"     },
+    { id:"saidas",     label:"Saídas",          icon:"exit"      },
+    { id:"historico",  label:"Histórico",       icon:"history"   },
+    { id:"relatorios", label:"Relatórios",      icon:"chart"     },
+    ...(isAdmin ? [
+      { id:"usuarios",   label:"Usuários",        icon:"printer"   },
+      { id:"audit",      label:"Auditoria",       icon:"alert"     },
+    ] : [])
   ];
 
   return (
@@ -1274,9 +1466,12 @@ export default function App() {
                 {tela==="dashboard"  && <Dashboard  toners={toners} pedidos={pedidos} saidas={saidas}/>}
                 {tela==="estoque"    && <Estoque    toners={toners} setToners={setToners} toast={toast}/>}
                 {tela==="pedidos"    && <Pedidos    toners={toners} pedidos={pedidos} setPedidos={setPedidos} toast={toast}/>}
-                {tela==="entrada"    && <Entrada    toners={toners} setToners={setToners} entradas={entradas} setEntradas={setEntradas} toast={toast}/>}
-                {tela==="saida"      && <Saida      toners={toners} setToners={setToners} saidas={saidas} setSaidas={setSaidas} toast={toast}/>}
-                {tela==="relatorios" && <Relatorios saidas={saidas} entradas={entradas}/>}
+                {tela==="entradas"   && <Entrada    toners={toners} setToners={setToners} entradas={entradas} setEntradas={setEntradas} toast={toast}/>}
+                {tela==="saidas"     && <Saida      toners={toners} setToners={setToners} saidas={saidas} setSaidas={setSaidas} toast={toast}/>}
+                {tela==="relatorios" && <Relatorios saidas={saidas} entradas={entradas}/>} 
+                {tela==="historico"  && <Historico />}
+                {tela==="usuarios"   && <Usuarios toast={toast} />}
+                {tela==="audit"      && <Auditoria />}
               </>
           }
         </div>
