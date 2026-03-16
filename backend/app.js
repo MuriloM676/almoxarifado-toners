@@ -98,43 +98,6 @@ function createApp(options = {}) {
     db.prepare("INSERT INTO audit_logs (userId, username, action, details, timestamp) VALUES (?,?,?,?,?)")
       .run(user?.id || null, user?.username || null, action, details, new Date().toISOString());
   }
-  // ── Rotas de usuários (admin) ────────────────────────────────
-  app.get("/api/users", (req, res) => {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
-    res.json(db.prepare("SELECT id, username, nome, role FROM users").all());
-  });
-
-  app.post("/api/users", (req, res) => {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
-    const { username, password, nome, role } = req.body;
-    if (!username || !password || !nome || !role)
-      return res.status(400).json({ error: "Campos obrigatórios" });
-    const hash = bcrypt.hashSync(password, 10);
-    try {
-      db.prepare("INSERT INTO users (username, password, nome, role) VALUES (?,?,?,?)")
-        .run(username, hash, nome, role);
-      audit(req.user, "create_user", `username=${username}, role=${role}`);
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(400).json({ error: "Usuário já existe" });
-    }
-  });
-
-  app.put("/api/users/:id", (req, res) => {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
-    const { nome, role } = req.body;
-    db.prepare("UPDATE users SET nome=?, role=? WHERE id=?").run(nome, role, req.params.id);
-    audit(req.user, "update_user", `id=${req.params.id}, role=${role}`);
-    res.json({ ok: true });
-  });
-
-  app.delete("/api/users/:id", (req, res) => {
-    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
-    db.prepare("DELETE FROM users WHERE id=?").run(req.params.id);
-    audit(req.user, "delete_user", `id=${req.params.id}`);
-    res.json({ ok: true });
-  });
-
   // ── Seed inicial se banco estiver vazio ────────────────────────
   if (db.prepare("SELECT COUNT(*) as c FROM toners").get().c === 0) {
     const insert = db.prepare("INSERT INTO toners (modelo,impressora,cor,estoque,estoqueMinimo,preco) VALUES (?,?,?,?,?,?)");
@@ -177,6 +140,43 @@ function createApp(options = {}) {
   };
 
   app.use("/api", auth);
+
+  // ── Rotas de usuários (admin) ────────────────────────────────
+  app.get("/api/users", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    res.json(db.prepare("SELECT id, username, nome, role FROM users").all());
+  });
+
+  app.post("/api/users", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    const { username, password, nome, role } = req.body;
+    if (!username || !password || !nome || !role)
+      return res.status(400).json({ error: "Campos obrigatórios" });
+    const hash = bcrypt.hashSync(password, 10);
+    try {
+      db.prepare("INSERT INTO users (username, password, nome, role) VALUES (?,?,?,?)")
+        .run(username, hash, nome, role);
+      audit(req.user, "create_user", `username=${username}, role=${role}`);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({ error: "Usuário já existe" });
+    }
+  });
+
+  app.put("/api/users/:id", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    const { nome, role } = req.body;
+    db.prepare("UPDATE users SET nome=?, role=? WHERE id=?").run(nome, role, req.params.id);
+    audit(req.user, "update_user", `id=${req.params.id}, role=${role}`);
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/users/:id", (req, res) => {
+    if (req.user.role !== "admin") return res.status(403).json({ error: "Permissão negada" });
+    db.prepare("DELETE FROM users WHERE id=?").run(req.params.id);
+    audit(req.user, "delete_user", `id=${req.params.id}`);
+    res.json({ ok: true });
+  });
 
   // ── Rota: trocar senha ─────────────────────────────────────────
   app.put("/api/auth/senha", (req, res) => {
