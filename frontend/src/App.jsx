@@ -1218,6 +1218,17 @@ function Usuarios({ toast }) {
     setSaving(false);
   };
 
+  const excluirUsuario = async (user) => {
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${user.nome}" (${user.username})? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await api.deleteUser(user.id);
+      toast("Usuário excluído com sucesso!", "success");
+      carregarUsers();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+
   if (loading) return <Spinner/>;
   return (
     <div>
@@ -1252,6 +1263,7 @@ function Usuarios({ toast }) {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Nome</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Usuário</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Função</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1263,6 +1275,12 @@ function Usuarios({ toast }) {
                         <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                           {user.role}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => excluirUsuario(user)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50">
+                          <Icon name="trash" size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
