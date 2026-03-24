@@ -7,10 +7,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./backend/data:/app/data
-      - data:/var/lib/grafana
     networks:
-      lan:
-        ipv4_address: 172.20.0.13
+      - app
 
   frontend:
     build:
@@ -21,12 +19,7 @@ services:
     depends_on:
       - backend
     networks:
-      lan:
-        ipv4_address: 172.20.0.14
+      - app
 
 networks:
-  lan:
-    external: true
-
-volumes:
-  data:
+  app:
