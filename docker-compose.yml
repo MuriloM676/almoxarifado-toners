@@ -6,8 +6,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET}
     volumes:
-      - ./backend/data:/app/data
-      - data:/var/lib/grafana
+      - data:/app/data
     networks:
       lan:
         ipv4_address: 172.20.0.13
